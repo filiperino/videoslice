@@ -10,7 +10,7 @@ More on the topic:
 
 http://widerscreen.fi/numerot/2014-1-2/demo-age-new-views/ 
 
-(archive.org mirror: https://web.archive.org/web/20201021052343/http://widerscreen.fi/numerot/2014-1-2/demo-age-new-views/)
+archive.org mirror: https://web.archive.org/web/20201021052343/http://widerscreen.fi/numerot/2014-1-2/demo-age-new-views/
 
 Requirements:
 - Python 3.x (https://www.python.org/downloads/)
