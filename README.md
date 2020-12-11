@@ -19,7 +19,16 @@ Requirements:
 Usage:
 1. Place process.py into any directory
 2. Run process.py in the terminal by using: 
-```python process.py path_to_video_file```
+    ```
+    usage: process.py [-h] [-H] videofile
+
+    positional arguments:
+    videofile   Path to the video file.
+
+    optional arguments:
+    -h, --help  show this help message and exit      
+    -H, --half  whether to half the framerate or not.
+    ```
 
     NOTE: On first launch download and extraction of FFmpeg happens, which depending on your internet download speed and proximity to mirror host, takes ~15 minutes. The projection process is around 1.2x faster than real-time playback, so for example a 10 minute video finishes processing in ~8 minutes.
 
