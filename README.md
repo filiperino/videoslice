@@ -21,7 +21,7 @@ Usage:
 2. Run process.py in the terminal by using: 
 ```python process.py path_to_video_file```
 
-    NOTE: First Usually the process is around 1.2x faster than real-time playback, so for eg a 10 minute video finished in ~8 minutes.
+    NOTE: On first launch download and extraction of FFmpeg happens, which depending on your internet download speed and proximity to mirror host, takes ~15 minutes. The projection process is around 1.2x faster than real-time playback, so for example a 10 minute video finishes processing in ~8 minutes.
 
 To-do:
 - Variable slice width
