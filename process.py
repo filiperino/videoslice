@@ -15,8 +15,14 @@ FFMPEG_EXE = environ['TEMP'] + '\\prerequisites\\ffmpeg-4.3.1-2020-11-19-essenti
 FFPROBE_EXE = environ['TEMP'] + '\\prerequisites\\ffmpeg-4.3.1-2020-11-19-essentials_build\\bin\\ffprobe.exe'
 
 parser = argparse.ArgumentParser()
-parser.add_argument("videofile",
+parser.add_argument(
+                    "videofile",
                     help='Path to the video file. \
+                    ')
+parser.add_argument(
+                    '-H', '--half',
+                    action='store_true',
+                    help='whether to half the framerate or not. \
                     ')
 args = parser.parse_args()
 
@@ -67,25 +73,29 @@ def install_dependencies() -> None:
         print("FFMPEG already extracted. Proceeding...\n")
 
 
-def process(path: str) -> None:
+def process(path: str, half: bool) -> None:
 
     t0 = time()
 
-    output = splitext(split(sys.argv[1])[1])[0]
+    output = splitext(split(path)[1])[0]
 
-    framerate = int(eval(subprocess.check_output(f'"{FFPROBE_EXE}" \
+    framerate = float(eval(subprocess.check_output(f'"{FFPROBE_EXE}" \
                                         -hide_banner \
                                         -v error \
                                         -select_streams v:0 \
                                         -show_entries stream=avg_frame_rate \
-                                        -of csv=s=x:p=0 "{sys.argv[1]}" \
+                                        -of csv=s=x:p=0 "{path}" \
                                       ').strip()))
+
+    if half:
+
+        framerate = framerate / 2
 
     duration = float(subprocess.check_output(f'"{FFPROBE_EXE}" \
                                         -hide_banner \
                                         -v error \
                                         -show_entries format=duration \
-                                        -of default=noprint_wrappers=1:nokey=1 "{sys.argv[1]}" \
+                                        -of default=noprint_wrappers=1:nokey=1 "{path}" \
                                       '))
 
     img_height = int(subprocess.check_output(f'"{FFPROBE_EXE}" \
@@ -93,7 +103,7 @@ def process(path: str) -> None:
                                         -v error \
                                         -select_streams v:0 \
                                         -show_entries stream=height \
-                                        -of csv=s=x:p=0 "{sys.argv[1]}" \
+                                        -of csv=s=x:p=0 "{path}" \
                                       '))
 
     # Get the range of frames.
@@ -111,7 +121,7 @@ def process(path: str) -> None:
         crop=1:ih:iw/2:0, \
         tile={ilen}x1" \
         "{output}.png" \
-        ', stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        ')
 
     # Extract audio from video file, mux to mono and save as .wav format.
     # ffmpeg -i '.\mercury - the timeless _ Demoscene-Jz3tMVrtOso.mkv' -ac 1 mono.wav
@@ -120,7 +130,7 @@ def process(path: str) -> None:
         -hide_banner \
         -ac 1 \
         "{output}_mono.wav" \
-        ', stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        ')
 
     # Generate a spectrogram from the mono audio file.
     subprocess.run(f'"{FFMPEG_EXE}" \
@@ -128,7 +138,7 @@ def process(path: str) -> None:
         -hide_banner \
         -lavfi showspectrumpic=legend=disabled:s={ilen}x{img_height} \
         wave.png \
-        ', stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        ')
 
     # Put the spectrogram .png and video .png together.
     subprocess.run(f'"{FFMPEG_EXE}" \
@@ -137,7 +147,7 @@ def process(path: str) -> None:
         -hide_banner \
         -filter_complex vstack=inputs=2 \
         "{output}_assembled.png" \
-        ', stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        ')
 
     # Create a 25% Y scale version of the video .png file.
     subprocess.run(f'"{FFMPEG_EXE}" \
@@ -145,7 +155,7 @@ def process(path: str) -> None:
         -hide_banner \
         -vf scale=iw:ih/4 \
         "{output}_yscale.png" \
-        ', stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        ')
 
     # Create a 25% Y scale version of the assembled .png file.
     subprocess.run(f'"{FFMPEG_EXE}" \
@@ -153,7 +163,7 @@ def process(path: str) -> None:
         -hide_banner \
         -vf scale=iw:ih/4 \
         "{output}_assembled_yscale.png" \
-        ', stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        ')
 
     # Cleanup.
     saferemove(f"{output}_mono.wav")
@@ -169,7 +179,7 @@ def main() -> None:
     install_dependencies()
 
     if args.videofile:
-        process(args.videofile)
+        process(args.videofile, args.half)
 
 
 if __name__ == '__main__':
