@@ -16,13 +16,24 @@ FFPROBE_EXE = environ['TEMP'] + '\\prerequisites\\ffmpeg-4.3.1-2020-11-19-essent
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-                    "videofile",
-                    help='Path to the video file. \
+                    'videofile',
+                    help='path to the video file. \
                     ')
 parser.add_argument(
                     '-H', '--half',
                     action='store_true',
                     help='whether to half the framerate or not. \
+                    ')
+parser.add_argument(
+                    '-j', '--jpeg',
+                    action='store_true',
+                    help='whether to output as .jpeg \
+                    ')
+parser.add_argument(
+                    '-m', '--mode',
+                    metavar='1/2',
+                    type=int,
+                    help='projection mode (YZ/XZ)  \
                     ')
 args = parser.parse_args()
 
@@ -73,11 +84,16 @@ def install_dependencies() -> None:
         print("FFMPEG already extracted. Proceeding...\n")
 
 
-def process(path: str, half: bool) -> None:
+def process(path: str, half: bool, jpeg: bool, mode: int) -> None:
 
     t0 = time()
 
-    output = splitext(split(path)[1])[0]
+    duration = float(subprocess.check_output(f'"{FFPROBE_EXE}" \
+                                        -hide_banner \
+                                        -v error \
+                                        -show_entries format=duration \
+                                        -of default=noprint_wrappers=1:nokey=1 "{path}" \
+                                        '))
 
     framerate = float(eval(subprocess.check_output(f'"{FFPROBE_EXE}" \
                                         -hide_banner \
@@ -85,18 +101,10 @@ def process(path: str, half: bool) -> None:
                                         -select_streams v:0 \
                                         -show_entries stream=avg_frame_rate \
                                         -of csv=s=x:p=0 "{path}" \
-                                      ').strip()))
+                                        ').strip()))
 
     if half:
-
         framerate = framerate / 2
-
-    duration = float(subprocess.check_output(f'"{FFPROBE_EXE}" \
-                                        -hide_banner \
-                                        -v error \
-                                        -show_entries format=duration \
-                                        -of default=noprint_wrappers=1:nokey=1 "{path}" \
-                                      '))
 
     img_height = int(subprocess.check_output(f'"{FFPROBE_EXE}" \
                                         -hide_banner \
@@ -104,23 +112,51 @@ def process(path: str, half: bool) -> None:
                                         -select_streams v:0 \
                                         -show_entries stream=height \
                                         -of csv=s=x:p=0 "{path}" \
-                                      '))
+                                        '))
+
+    qscale = ''
+
+    output = splitext(split(path)[1])[0]
+
+    if jpeg:
+        ext = '.jpeg'
+        qscale = '-qscale:v 2'
+    else:
+        ext = '.png'
 
     # Get the range of frames.
     ilen = round(duration * framerate)
 
+    if mode == 0:
+        crop = '25:ih:iw/2-25:0'
+        tile = f'{ilen}x1'
+        stackmode = 'vstack'
+        rotate = ''
+
+    if mode == 1:
+        crop = 'iw:1:0:ih/2'
+        tile = f'1x{ilen}'
+        stackmode = 'hstack'
+        rotate = '"transpose=1"'
+
+    print(duration, framerate, ilen)
+
     # Create the .png file.
     # ffmpeg -i out_%04d.jpg -filter_complex "tile=300x1, format=yuv444p|yuva444p10be|rgb24" output.png
     # -filter_complex "fps=15,format=yuv444p|yuva444p10be|rgb24,crop=1:ih:iw/2:0,tile=5000x1" output.png
+    # crop=XSIZE:YSIZE:XPOS:YPOS
+    # -loglevel level+debug
+    # crop=1:{height}:{width}/2:0
     subprocess.run(f'"{FFMPEG_EXE}" \
         -i "{path}" \
         -hide_banner \
         -filter_complex \
         "fps={framerate}, \
         format=yuv444p|yuva444p10be|rgb24, \
-        crop=1:ih:iw/2:0, \
-        tile={ilen}x1" \
-        "{output}.png" \
+        crop={crop}, \
+        tile={tile}" \
+        {qscale} \
+        "{output}{ext}" \
         ')
 
     # Extract audio from video file, mux to mono and save as .wav format.
@@ -136,18 +172,37 @@ def process(path: str, half: bool) -> None:
     subprocess.run(f'"{FFMPEG_EXE}" \
         -i "{output}_mono.wav" \
         -hide_banner \
-        -lavfi showspectrumpic=legend=disabled:s={ilen}x{img_height} \
+        -lavfi \
+        showspectrumpic=legend=disabled:s={ilen}x{img_height} \
         wave.png \
         ')
 
-    # Put the spectrogram .png and video .png together.
-    subprocess.run(f'"{FFMPEG_EXE}" \
-        -i "{output}.png" \
-        -i "wave.png" \
-        -hide_banner \
-        -filter_complex vstack=inputs=2 \
-        "{output}_assembled.png" \
-        ')
+    if mode == 1:
+        subprocess.run(f'"{FFMPEG_EXE}" \
+            -i wave.png \
+            -hide_banner \
+            -vf {rotate} \
+            wave1.png \
+            ')
+
+        # Put the spectrogram .png and video .png together.
+        subprocess.run(f'"{FFMPEG_EXE}" \
+            -i "{output}{ext}" \
+            -i "wave1.png" \
+            -hide_banner \
+            -filter_complex {stackmode}=inputs=2 \
+            "{output}_assembled{ext}" \
+            ')
+
+    else:
+        # Put the spectrogram .png and video .png together.
+        subprocess.run(f'"{FFMPEG_EXE}" \
+            -i "{output}{ext}" \
+            -i "wave.png" \
+            -hide_banner \
+            -filter_complex {stackmode}=inputs=2 \
+            "{output}_assembled{ext}" \
+            ')
 
     # Create a 25% Y scale version of the video .png file.
     subprocess.run(f'"{FFMPEG_EXE}" \
@@ -158,16 +213,18 @@ def process(path: str, half: bool) -> None:
         ')
 
     # Create a 25% Y scale version of the assembled .png file.
-    subprocess.run(f'"{FFMPEG_EXE}" \
-        -i "{output}_assembled.png" \
-        -hide_banner \
-        -vf scale=iw:ih/4 \
-        "{output}_assembled_yscale.png" \
-        ')
+    # subprocess.run(f'"{FFMPEG_EXE}" \
+    #     -i "{output}_assembled.png" \
+    #     -hide_banner \
+    #     -vf scale=iw:ih/4 \
+    #     "{output}_assembled_yscale.png" \
+    #     ')
 
     # Cleanup.
     saferemove(f"{output}_mono.wav")
     saferemove("wave.png")
+    if mode == 1:
+        saferemove("wave1.png")
 
     t1 = time()
 
@@ -179,7 +236,7 @@ def main() -> None:
     install_dependencies()
 
     if args.videofile:
-        process(args.videofile, args.half)
+        process(args.videofile, args.half, args.jpeg, args.mode)
 
 
 if __name__ == '__main__':

@@ -20,22 +20,24 @@ Usage:
 1. Place process.py into any directory
 2. Run process.py in the terminal by using: 
     ```
-    usage: process.py [-h] [-H] videofile
+    usage: process.py [-h] [-H] [-j] [-m 1/2] videofile        
 
     positional arguments:
-    videofile   Path to the video file.
+    videofile           path to the video file.
 
     optional arguments:
-    -h, --help  show this help message and exit      
-    -H, --half  whether to half the framerate or not.
+    -h, --help          show this help message and exit      
+    -H, --half          whether to half the framerate or not.
+    -j, --jpeg          whether to output as .jpeg (outputs a .png by default)
+    -m 1/2, --mode 1/2  projection mode (YZ/XZ)
     ```
 
-    NOTE: On first launch download and extraction of FFmpeg happens, which depending on your internet download speed and proximity to mirror host, takes ~15 minutes. The projection process is around 1.2x faster than real-time playback, so for example a 10 minute video finishes processing in ~8 minutes.
+    NOTE: On first launch download and extraction of FFmpeg happens, which depending on your internet download speed and proximity to mirror host, takes ~15 minutes. The projection process is generally around 1.2x faster than real-time playback, but that can go up drastically .
 
 To-do:
-- Variable slice width
-- Add a XZ projection mode
-- Linux support
+- Variable slice width (X)
+- Add a XZ projection mode (V)
+- Linux support (X)
 
 Known Issues:
 - N/A
