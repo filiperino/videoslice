@@ -128,7 +128,7 @@ def process(path: str, half: bool, jpeg: bool, mode: int) -> None:
     ilen = round(duration * framerate)
 
     if mode == 0:
-        crop = '25:ih:iw/2-25:0'
+        crop = ':ih:iw/2:0'
         tile = f'{ilen}x1'
         stackmode = 'vstack'
         rotate = ''
